@@ -7,30 +7,26 @@ from baselines.common.tile_images import tile_images
 def worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
     env = env_fn_wrapper.x()
-    try:
-        while True:
-            cmd, data = remote.recv()
-            if cmd == 'step':
-                ob, reward, done, info = env.step(data)
-                if done:
-                    ob = env.reset()
-                remote.send((ob, reward, done, info))
-            elif cmd == 'reset':
+    while True:
+        cmd, data = remote.recv()
+        if cmd == 'step':
+            ob, reward, done, info = env.step(data)
+            if done:
                 ob = env.reset()
-                remote.send(ob)
-            elif cmd == 'render':
-                remote.send(env.render(mode='rgb_array'))
-            elif cmd == 'close':
-                remote.close()
-                break
-            elif cmd == 'get_spaces':
-                remote.send((env.observation_space, env.action_space))
-            else:
-                raise NotImplementedError
-    except KeyboardInterrupt:
-        print('SubprocVecEnv worker: got KeyboardInterrupt')
-    finally:
-        env.close()
+            remote.send((ob, reward, done, info))
+        elif cmd == 'reset':
+            ob = env.reset()
+            remote.send(ob)
+        elif cmd == 'render':
+            remote.send(env.render(mode='rgb_array'))
+        elif cmd == 'close':
+            remote.close()
+            break
+        elif cmd == 'get_spaces':
+            remote.send((env.observation_space, env.action_space))
+        else:
+            raise NotImplementedError
+
 
 class SubprocVecEnv(VecEnv):
     def __init__(self, env_fns, spaces=None):

@@ -26,9 +26,9 @@ def reduce_std(x, axis=None, keepdims=False):
     return tf.sqrt(reduce_var(x, axis=axis, keepdims=keepdims))
 
 def reduce_var(x, axis=None, keepdims=False):
-    m = tf.reduce_mean(x, axis=axis, keepdims=True)
+    m = tf.reduce_mean(x, axis=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
-    return tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims)
+    return tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims)
 
 def get_target_updates(vars, target_vars, tau):
     logger.info('setting up target updates ...')
@@ -76,8 +76,8 @@ class DDPG(object):
         self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
 
         # Parameters.
-        self.gamma = gamma
-        self.tau = tau
+        self.gamma = gamma # discount factor
+        self.tau = tau # stepsize for (smooth) updating the target network weights
         self.memory = memory
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
@@ -88,14 +88,14 @@ class DDPG(object):
         self.observation_range = observation_range
         self.critic = critic
         self.actor = actor
-        self.actor_lr = actor_lr
-        self.critic_lr = critic_lr
+        self.actor_lr = actor_lr # learning rate for network of actor
+        self.critic_lr = critic_lr # learning rate for network of critic
         self.clip_norm = clip_norm
         self.enable_popart = enable_popart
         self.reward_scale = reward_scale
         self.batch_size = batch_size
         self.stats_sample = None
-        self.critic_l2_reg = critic_l2_reg
+        self.critic_l2_reg = critic_l2_reg # regularization coefficient for network of critic
 
         # Observation normalization.
         if self.normalize_observations:
@@ -108,7 +108,7 @@ class DDPG(object):
         normalized_obs1 = tf.clip_by_value(normalize(self.obs1, self.obs_rms),
             self.observation_range[0], self.observation_range[1])
 
-        # Return normalization.
+        # Return (= reward) normalization.
         if self.normalize_returns:
             with tf.variable_scope('ret_rms'):
                 self.ret_rms = RunningMeanStd()
@@ -130,7 +130,7 @@ class DDPG(object):
         self.normalized_critic_with_actor_tf = critic(normalized_obs0, self.actor_tf, reuse=True)
         self.critic_with_actor_tf = denormalize(tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
         Q_obs1 = denormalize(target_critic(normalized_obs1, target_actor(normalized_obs1)), self.ret_rms)
-        self.target_Q = self.rewards + (1. - self.terminals1) * gamma * Q_obs1
+        self.target_Q = self.rewards + (1. - self.terminals1) * gamma * Q_obs1 # TODO: 1- terminals1 ??
 
         # Set up parts.
         if self.param_noise is not None:
@@ -268,7 +268,7 @@ class DDPG(object):
             noise = self.action_noise()
             assert noise.shape == action.shape
             action += noise
-        action = np.clip(action, self.action_range[0], self.action_range[1])
+        action = np.clip(action, self.action_range[0], self.action_range[1]) # TODO: maybe comment this line
         return action, q
 
     def store_transition(self, obs0, action, reward, obs1, terminal1):
@@ -323,7 +323,7 @@ class DDPG(object):
 
     def initialize(self, sess):
         self.sess = sess
-        self.sess.run(tf.global_variables_initializer())
+        # self.sess.run(tf.global_variables_initializer()) # is done in /baselines/ddpg/training.py
         self.actor_optimizer.sync()
         self.critic_optimizer.sync()
         self.sess.run(self.target_init_updates)
@@ -340,13 +340,14 @@ class DDPG(object):
             self.obs0: self.stats_sample['obs0'],
             self.actions: self.stats_sample['actions'],
         })
+        # values = [241.93886, 5.4122686, -3.6965165, 0.00028637942, -3.4581754, 2.3841858e-07, 0.25359547, 0.3071089, -0.18079321, 0.5772085]
 
-        names = self.stats_names[:]
+        names = self.stats_names[:] # ['obs_rms_mean', 'obs_rms_std', 'reference_Q_mean', 'reference_Q_std', 'reference_actor_Q_mean', 'reference_actor_Q_std', 'reference_action_mean', 'reference_action_std', 'reference_perturbed...tion_mean', 'reference_perturbed...ction_std']
         assert len(names) == len(values)
-        stats = dict(zip(names, values))
+        stats = dict(zip(names, values)) # {'obs_rms_mean': 241.93886, 'obs_rms_std': 5.4122686, 'reference_Q_mean': -3.6965165, 'reference_Q_std': 0.00028637942, 'reference_action_mean': 0.25359547, 'reference_action_std': 0.3071089, 'reference_actor_Q_mean': -3.4581754, 'reference_actor_Q_std': 2.3841858e-07, 'reference_perturbed...tion_mean': -0.18079321, 'reference_perturbed...ction_std': 0.5772085}
 
         if self.param_noise is not None:
-            stats = {**stats, **self.param_noise.get_stats()}
+            stats.update(self.param_noise.get_stats())
 
         return stats
 

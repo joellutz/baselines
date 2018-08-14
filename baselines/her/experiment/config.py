@@ -1,5 +1,6 @@
 import numpy as np
 import gym
+import gym_gazebo
 
 from baselines import logger
 from baselines.her.ddpg import DDPG
@@ -73,10 +74,10 @@ def prepare_params(kwargs):
     kwargs['make_env'] = make_env
     tmp_env = cached_make_env(kwargs['make_env'])
     assert hasattr(tmp_env, '_max_episode_steps')
-    kwargs['T'] = tmp_env._max_episode_steps
+    kwargs['T'] = tmp_env._max_episode_steps # 200
     tmp_env.reset()
-    kwargs['max_u'] = np.array(kwargs['max_u']) if isinstance(kwargs['max_u'], list) else kwargs['max_u']
-    kwargs['gamma'] = 1. - 1. / kwargs['T']
+    kwargs['max_u'] = np.array(kwargs['max_u']) if isinstance(kwargs['max_u'], list) else kwargs['max_u'] # 1.0
+    kwargs['gamma'] = 1. - 1. / kwargs['T'] # 0.995
     if 'lr' in kwargs:
         kwargs['pi_lr'] = kwargs['lr']
         kwargs['Q_lr'] = kwargs['lr']
@@ -91,7 +92,7 @@ def prepare_params(kwargs):
         kwargs['_' + name] = kwargs[name]
         del kwargs[name]
     kwargs['ddpg_params'] = ddpg_params
-
+    # kwargs = {'T': 200, '_Q_lr': 0.001, '_action_l2': 1.0, '_batch_size': 256, '_buffer_size': 1000000, '_clip_obs': 200.0, '_hidden': 256, '_layers': 3, '_max_u': 1.0, '_network_class': 'baselines.her.actor...torCritic', '_norm_clip': 5, '_norm_eps': 0.01, '_pi_lr': 0.001, '_polyak': 0.95, ...}
     return kwargs
 
 
@@ -149,7 +150,7 @@ def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True):
     ddpg_params['info'] = {
         'env_name': params['env_name'],
     }
-    policy = DDPG(reuse=reuse, **ddpg_params, use_mpi=use_mpi)
+    policy = DDPG(ddpg_params, reuse=reuse, use_mpi=use_mpi)
     return policy
 
 

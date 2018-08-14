@@ -17,7 +17,7 @@ def dims_to_shapes(input_dims):
 
 
 class DDPG(object):
-    @store_args
+    # @store_args
     def __init__(self, input_dims, buffer_size, hidden, layers, network_class, polyak, batch_size,
                  Q_lr, pi_lr, norm_eps, norm_clip, max_u, action_l2, clip_obs, scope, T,
                  rollout_batch_size, subtract_goals, relative_goals, clip_pos_returns, clip_return,
@@ -66,7 +66,7 @@ class DDPG(object):
         for key in sorted(self.input_dims.keys()):
             if key.startswith('info_'):
                 continue
-            stage_shapes[key] = (None, *input_shapes[key])
+            stage_shapes[key] = (None, input_shapes[key])
         for key in ['o', 'g']:
             stage_shapes[key + '_2'] = stage_shapes[key]
         stage_shapes['r'] = (None,)
@@ -84,7 +84,7 @@ class DDPG(object):
             self._create_network(reuse=reuse)
 
         # Configure the replay buffer.
-        buffer_shapes = {key: (self.T if key != 'o' else self.T+1, *input_shapes[key])
+        buffer_shapes = {key: (self.T if key != 'o' else self.T+1, input_shapes[key])
                          for key, val in input_shapes.items()}
         buffer_shapes['g'] = (buffer_shapes['g'][0], self.dimg)
         buffer_shapes['ag'] = (self.T+1, self.dimg)
