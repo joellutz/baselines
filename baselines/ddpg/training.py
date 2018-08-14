@@ -1,4 +1,5 @@
 import os
+from os.path import expanduser
 import time
 from collections import deque
 import pickle
@@ -40,7 +41,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     logger.info(str(agent.__dict__.items()))
 
     # Set up saving stuff only for a single worker.
-    savingModelPath = "/home/joel/Documents/saved_models_OpenAI_gym/"
+    home = expanduser("~")
+    savingModelPath = home + "/Documents/saved_models_OpenAI_gym/"
     if rank == 0:
         saver = tf.train.Saver(keep_checkpoint_every_n_hours=1)
     else:
